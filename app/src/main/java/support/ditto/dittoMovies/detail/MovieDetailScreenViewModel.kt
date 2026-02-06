@@ -33,4 +33,14 @@ class MovieDetailScreenViewModel : ViewModel() {
             _movie.value = result
         }
     }
+
+    fun toggleWatched() {
+        val current = _movie.value ?: return
+        val newWatched = !current.watched
+        Timber.d("👁️ Toggling watched=${newWatched} for '${current.title}'")
+        _movie.value = current.copy(watched = newWatched)
+        viewModelScope.launch {
+            repository.toggleWatched(current._id, newWatched)
+        }
+    }
 }

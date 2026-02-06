@@ -17,6 +17,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -235,6 +237,30 @@ fun MovieDetailScreen(navController: NavController, movieId: String) {
                     }
 
                     Spacer(modifier = Modifier.height(20.dp))
+
+                    // Watched checkbox
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = currentMovie.watched,
+                            onCheckedChange = { viewModel.toggleWatched() },
+                            colors = CheckboxDefaults.colors(
+                                checkedColor = Color.White,
+                                uncheckedColor = Color.White.copy(alpha = 0.7f),
+                                checkmarkColor = Color.Black
+                            )
+                        )
+                        Text(
+                            text = if (currentMovie.watched) "Watched" else "Mark as watched",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color.White,
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
+                    }
 
                     // Plot
                     if (currentMovie.plot.isNotBlank()) {
