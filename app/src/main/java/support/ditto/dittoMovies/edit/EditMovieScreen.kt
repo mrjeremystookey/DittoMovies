@@ -10,8 +10,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -20,21 +21,14 @@ import androidx.navigation.NavController
 @Composable
 fun EditMovieScreen(navController: NavController, movieId: String?) {
     val viewModel: EditMovieScreenViewModel = viewModel()
-    viewModel.setupWithMovie(id = movieId)
 
+    // Load once, not on every recomposition
+    LaunchedEffect(movieId) {
+        viewModel.loadMovie(id = movieId)
+    }
+
+    val state by viewModel.state.collectAsState()
     val topBarTitle = if (movieId == null) "New Movie" else "Edit Movie"
-
-    val title: String by viewModel.title.observeAsState("")
-    val year: String by viewModel.year.observeAsState("")
-    val plot: String by viewModel.plot.observeAsState("")
-    val genres: String by viewModel.genres.observeAsState("")
-    val rated: String by viewModel.rated.observeAsState("")
-    val runtime: String by viewModel.runtime.observeAsState("")
-    val poster: String by viewModel.poster.observeAsState("")
-    val directors: String by viewModel.directors.observeAsState("")
-    val cast: String by viewModel.cast.observeAsState("")
-    val imdbRating: String by viewModel.imdbRating.observeAsState("")
-    val canDelete: Boolean by viewModel.canDelete.observeAsState(false)
 
     Scaffold(
         topBar = {
@@ -54,27 +48,27 @@ fun EditMovieScreen(navController: NavController, movieId: String?) {
                     .padding(padding)
             ) {
                 EditMovieForm(
-                    canDelete = canDelete,
-                    title = title,
-                    onTitleChange = { viewModel.title.value = it },
-                    year = year,
-                    onYearChange = { viewModel.year.value = it },
-                    plot = plot,
-                    onPlotChange = { viewModel.plot.value = it },
-                    genres = genres,
-                    onGenresChange = { viewModel.genres.value = it },
-                    rated = rated,
-                    onRatedChange = { viewModel.rated.value = it },
-                    runtime = runtime,
-                    onRuntimeChange = { viewModel.runtime.value = it },
-                    poster = poster,
-                    onPosterChange = { viewModel.poster.value = it },
-                    directors = directors,
-                    onDirectorsChange = { viewModel.directors.value = it },
-                    cast = cast,
-                    onCastChange = { viewModel.cast.value = it },
-                    imdbRating = imdbRating,
-                    onImdbRatingChange = { viewModel.imdbRating.value = it },
+                    canDelete = state.canDelete,
+                    title = state.title,
+                    onTitleChange = { viewModel.updateState { copy(title = it) } },
+                    year = state.year,
+                    onYearChange = { viewModel.updateState { copy(year = it) } },
+                    plot = state.plot,
+                    onPlotChange = { viewModel.updateState { copy(plot = it) } },
+                    genres = state.genres,
+                    onGenresChange = { viewModel.updateState { copy(genres = it) } },
+                    rated = state.rated,
+                    onRatedChange = { viewModel.updateState { copy(rated = it) } },
+                    runtime = state.runtime,
+                    onRuntimeChange = { viewModel.updateState { copy(runtime = it) } },
+                    poster = state.poster,
+                    onPosterChange = { viewModel.updateState { copy(poster = it) } },
+                    directors = state.directors,
+                    onDirectorsChange = { viewModel.updateState { copy(directors = it) } },
+                    cast = state.cast,
+                    onCastChange = { viewModel.updateState { copy(cast = it) } },
+                    imdbRating = state.imdbRating,
+                    onImdbRatingChange = { viewModel.updateState { copy(imdbRating = it) } },
                     onSaveClicked = {
                         viewModel.save()
                         navController.popBackStack()

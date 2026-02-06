@@ -1,22 +1,26 @@
 package support.ditto.dittoMovies.data
 
 import android.content.Context
-import timber.log.Timber
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import live.ditto.DittoError
-import live.ditto.DittoStoreObserver
 import live.ditto.DittoSyncSubscription
 import org.json.JSONArray
 import org.json.JSONObject
 import support.ditto.dittoMovies.DittoHandler.Companion.ditto
 import support.ditto.dittoMovies.MoviesApplication
+import timber.log.Timber
 
 class MoviesRepository {
 
     companion object {
         private const val COLLECTION = "movies"
         const val QUERY = "SELECT * FROM $COLLECTION WHERE NOT deleted ORDER BY title ASC"
+        private const val IMPORT_BATCH_SIZE = 50
 
         // Singleton instance
         val instance: MoviesRepository by lazy { MoviesRepository() }
@@ -25,16 +29,20 @@ class MoviesRepository {
     private val appContext: Context = MoviesApplication.applicationContext()
     private var syncSubscription: DittoSyncSubscription? = null
 
-    // ── Observe ──
+    // ── Observe (Flow-based, parsing on IO) ──
 
-    fun observeMovies(onChange: (List<Movie>) -> Unit): DittoStoreObserver {
+    fun observeMovies(): Flow<List<Movie>> = callbackFlow {
         Timber.d("👀 Registering movies observer...")
-        return ditto.store.registerObserver(QUERY) { result ->
+        val observer = ditto.store.registerObserver(QUERY) { result ->
             val list = result.items.map { item -> Movie.fromJson(item.jsonString()) }
             Timber.d("📋 Observer received ${list.size} movies")
-            onChange(list)
+            trySend(list)
         }
-    }
+        awaitClose {
+            Timber.d("👀 Closing movies observer")
+            observer.close()
+        }
+    }.flowOn(Dispatchers.IO)
 
     // ── Read ──
 
@@ -160,34 +168,46 @@ class MoviesRepository {
 
                 val jsonArray = JSONArray(jsonString)
                 val total = jsonArray.length()
-                Timber.d("📦 Parsed $total movies from JSON, starting import...")
+                Timber.d("📦 Parsed $total movies from JSON, starting batched import (batch size: $IMPORT_BATCH_SIZE)...")
 
                 var imported = 0
                 var failed = 0
-                for (i in 0 until total) {
-                    try {
-                        val obj = jsonArray.getJSONObject(i)
-                        val movieMap = flattenMovieJson(obj)
 
-                        ditto.store.execute(
-                            "INSERT INTO $COLLECTION INITIAL DOCUMENTS (:movie)",
-                            mapOf("movie" to movieMap)
-                        )
-                        imported++
+                // Process in batches for better performance
+                for (batchStart in 0 until total step IMPORT_BATCH_SIZE) {
+                    val batchEnd = minOf(batchStart + IMPORT_BATCH_SIZE, total)
+                    val batch = mutableListOf<Map<String, Any?>>()
 
-                        // Log progress every 1000 movies
-                        if (imported % 1000 == 0) {
-                            Timber.d("⏳ Import progress: $imported / $total")
+                    for (i in batchStart until batchEnd) {
+                        try {
+                            batch.add(flattenMovieJson(jsonArray.getJSONObject(i)))
+                        } catch (e: Exception) {
+                            failed++
+                            Timber.e(e, "❌ Error parsing movie at index $i")
                         }
-                    } catch (e: Exception) {
-                        failed++
-                        Timber.e("❌ Error importing movie at index $i", e)
+                    }
+
+                    if (batch.isNotEmpty()) {
+                        try {
+                            ditto.store.execute(
+                                "INSERT INTO $COLLECTION INITIAL DOCUMENTS (:movies)",
+                                mapOf("movies" to batch)
+                            )
+                            imported += batch.size
+                        } catch (e: Exception) {
+                            failed += batch.size
+                            Timber.e(e, "❌ Error inserting batch at $batchStart")
+                        }
+                    }
+
+                    if (imported % 1000 < IMPORT_BATCH_SIZE) {
+                        Timber.d("⏳ Import progress: $imported / $total")
                     }
                 }
 
                 Timber.d("🎬 Import complete! ✅ $imported imported, ❌ $failed failed, 📊 $total total")
             } catch (e: Exception) {
-                Timber.e("💥 Error reading movies JSON from assets", e)
+                Timber.e(e, "💥 Error reading movies JSON from assets")
             }
         }
     }

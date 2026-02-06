@@ -1,37 +1,49 @@
 package support.ditto.dittoMovies.edit
 
-import timber.log.Timber
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import support.ditto.dittoMovies.data.MoviesRepository
+import timber.log.Timber
+
+data class EditMovieState(
+    val title: String = "",
+    val year: String = "",
+    val plot: String = "",
+    val genres: String = "",
+    val rated: String = "",
+    val runtime: String = "",
+    val poster: String = "",
+    val directors: String = "",
+    val cast: String = "",
+    val imdbRating: String = "",
+    val canDelete: Boolean = false,
+)
 
 class EditMovieScreenViewModel : ViewModel() {
 
-    private val repository
+    private val repository = MoviesRepository.instance
     private var _id: String? = null
+    private var _loaded = false
 
-    var title = MutableLiveData("")
-    var year = MutableLiveData("")
-    var plot = MutableLiveData("")
-    var genres = MutableLiveData("")
-    var rated = MutableLiveData("")
-    var runtime = MutableLiveData("")
-    var poster = MutableLiveData("")
-    var directors = MutableLiveData("")
-    var cast = MutableLiveData("")
-    var imdbRating = MutableLiveData("")
-    var canDelete = MutableLiveData(false)
+    private val _state = MutableStateFlow(EditMovieState())
+    val state: StateFlow<EditMovieState> = _state.asStateFlow()
 
-    fun setupWithMovie(id: String?) {
-        canDelete.postValue(id != null)
+    fun loadMovie(id: String?) {
+        if (_loaded) return
+        _loaded = true
+
+        _state.update { it.copy(canDelete = id != null) }
         val movieId: String = id ?: run {
             Timber.d("🆕 Setting up for new movie")
             return
         }
 
-        Timber.d("📝 Setting up edit for movie: $movieId")
+        Timber.d("📝 Loading movie: $movieId")
         viewModelScope.launch {
             val movie = repository.getMovieById(movieId) ?: run {
                 Timber.w("⚠️ Movie not found: $movieId")
@@ -39,32 +51,42 @@ class EditMovieScreenViewModel : ViewModel() {
             }
             Timber.d("✅ Loaded movie: '${movie.title}' (${movie.year})")
             _id = movie._id
-            title.postValue(movie.title)
-            year.postValue(if (movie.year > 0) movie.year.toString() else "")
-            plot.postValue(movie.plot)
-            genres.postValue(movie.genres.joinToString(", "))
-            rated.postValue(movie.rated)
-            runtime.postValue(if (movie.runtime > 0) movie.runtime.toString() else "")
-            poster.postValue(movie.poster)
-            directors.postValue(movie.directors.joinToString(", "))
-            cast.postValue(movie.cast.joinToString(", "))
-            imdbRating.postValue(if (movie.imdbRating > 0) movie.imdbRating.toString() else "")
+            _state.value = EditMovieState(
+                title = movie.title,
+                year = if (movie.year > 0) movie.year.toString() else "",
+                plot = movie.plot,
+                genres = movie.genres.joinToString(", "),
+                rated = movie.rated,
+                runtime = if (movie.runtime > 0) movie.runtime.toString() else "",
+                poster = movie.poster,
+                directors = movie.directors.joinToString(", "),
+                cast = movie.cast.joinToString(", "),
+                imdbRating = if (movie.imdbRating > 0) movie.imdbRating.toString() else "",
+                canDelete = true,
+            )
         }
     }
 
-    private fun buildMovieMap(): Map<String, Any?> = mapOf(
-        "title" to (title.value ?: ""),
-        "year" to (year.value?.toIntOrNull() ?: 0),
-        "plot" to (plot.value ?: ""),
-        "genres" to (genres.value ?: "").split(",").map { it.trim() }.filter { it.isNotEmpty() },
-        "rated" to (rated.value ?: ""),
-        "runtime" to (runtime.value?.toIntOrNull() ?: 0),
-        "poster" to (poster.value ?: ""),
-        "directors" to (directors.value ?: "").split(",").map { it.trim() }.filter { it.isNotEmpty() },
-        "cast" to (cast.value ?: "").split(",").map { it.trim() }.filter { it.isNotEmpty() },
-        "imdbRating" to (imdbRating.value?.toDoubleOrNull() ?: 0.0),
-        "deleted" to false
-    )
+    fun updateState(transform: EditMovieState.() -> EditMovieState) {
+        _state.update { it.transform() }
+    }
+
+    private fun buildMovieMap(): Map<String, Any?> {
+        val s = _state.value
+        return mapOf(
+            "title" to s.title,
+            "year" to (s.year.toIntOrNull() ?: 0),
+            "plot" to s.plot,
+            "genres" to s.genres.split(",").map { it.trim() }.filter { it.isNotEmpty() },
+            "rated" to s.rated,
+            "runtime" to (s.runtime.toIntOrNull() ?: 0),
+            "poster" to s.poster,
+            "directors" to s.directors.split(",").map { it.trim() }.filter { it.isNotEmpty() },
+            "cast" to s.cast.split(",").map { it.trim() }.filter { it.isNotEmpty() },
+            "imdbRating" to (s.imdbRating.toDoubleOrNull() ?: 0.0),
+            "deleted" to false
+        )
+    }
 
     fun save() {
         viewModelScope.launch {

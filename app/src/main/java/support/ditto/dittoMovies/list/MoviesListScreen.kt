@@ -1,7 +1,6 @@
 package support.ditto.dittoMovies.list
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,8 +24,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -42,8 +41,8 @@ import support.ditto.dittoMovies.data.Movie
 @Composable
 fun MoviesListScreen(navController: NavController) {
     val viewModel: MoviesListScreenViewModel = viewModel()
-    val movies: List<Movie> by viewModel.movies.observeAsState(emptyList())
-    val syncEnabled: Boolean by viewModel.syncEnabled.observeAsState(true)
+    val movies: List<Movie> by viewModel.movies.collectAsState()
+    val syncEnabled: Boolean by viewModel.syncEnabled.collectAsState()
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var deleteDialogMovieId by remember { mutableStateOf("") }
@@ -100,7 +99,7 @@ fun MoviesListScreen(navController: NavController) {
                     .padding(padding)
             ) {
                 LazyColumn {
-                    items(movies) { movie ->
+                    items(movies, key = { it._id }) { movie ->
                         MovieRow(
                             movie = movie,
                             onClick = {
