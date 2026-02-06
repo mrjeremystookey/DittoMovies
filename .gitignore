@@ -1,15 +1,46 @@
-*.iml
+# Environment secrets
+.env
+
+# Built outputs
+/build
+/app/build
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Gradle
 .gradle
-/local.properties
+/gradle/wrapper/gradle-wrapper.jar
+
+# Local config
+local.properties
+
+# Android Studio / IntelliJ
+*.iml
 /.idea/caches
 /.idea/libraries
 /.idea/modules.xml
 /.idea/workspace.xml
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
+/.idea/deploymentTargetSelector.xml
+/.idea/other.xml
+/.idea/vcs.xml
+/.idea/shelf
+
+# Native build
 .externalNativeBuild
 .cxx
-local.properties
+
+# Captures / profiling
+/captures
+
+# macOS
+.DS_Store
+
+# Kotlin
+*.kotlin_module
+
+# Logs
+*.log
