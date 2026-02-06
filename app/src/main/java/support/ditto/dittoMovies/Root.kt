@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import support.ditto.dittoMovies.detail.MovieDetailScreen
 import support.ditto.dittoMovies.edit.EditMovieScreen
 import support.ditto.dittoMovies.list.MoviesListScreen
 import support.ditto.dittoMovies.ui.theme.DittoMoviesTheme
@@ -18,6 +19,11 @@ fun Root() {
         Surface(color = MaterialTheme.colorScheme.background) {
             NavHost(navController = navController, startDestination = "movies") {
                 composable("movies") { MoviesListScreen(navController = navController) }
+                composable("movies/{movieId}") { backStackEntry ->
+                    val movieId: String =
+                        backStackEntry.arguments?.getString("movieId") ?: return@composable
+                    MovieDetailScreen(navController = navController, movieId = movieId)
+                }
                 composable("movies/edit") {
                     EditMovieScreen(navController = navController, movieId = null)
                 }
