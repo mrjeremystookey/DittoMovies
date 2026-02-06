@@ -19,11 +19,19 @@ class MoviesRepository {
 
     companion object {
         private const val COLLECTION = "movies"
-        const val QUERY = "SELECT * FROM $COLLECTION WHERE NOT deleted ORDER BY title ASC"
+        private const val SYNC_QUERY = "SELECT * FROM $COLLECTION"
         private const val IMPORT_BATCH_SIZE = 50
 
         // Singleton instance
         val instance: MoviesRepository by lazy { MoviesRepository() }
+
+        fun buildQuery(showWatched: Boolean = false, showDeleted: Boolean = false): String {
+            val clauses = mutableListOf<String>()
+            if (showWatched) clauses.add("watched = true")
+            if (showDeleted) clauses.add("deleted = true") else clauses.add("NOT deleted")
+            val where = if (clauses.isNotEmpty()) "WHERE ${clauses.joinToString(" AND ")}" else ""
+            return "SELECT * FROM $COLLECTION $where ORDER BY title ASC"
+        }
     }
 
     private val appContext: Context = MoviesApplication.applicationContext()
@@ -31,9 +39,13 @@ class MoviesRepository {
 
     // ── Observe (Flow-based, parsing on IO) ──
 
-    fun observeMovies(): Flow<List<Movie>> = callbackFlow {
-        Timber.d("👀 Registering movies observer...")
-        val observer = ditto.store.registerObserver(QUERY) { result ->
+    fun observeMovies(
+        showWatched: Boolean = false,
+        showDeleted: Boolean = false
+    ): Flow<List<Movie>> = callbackFlow {
+        val query = buildQuery(showWatched, showDeleted)
+        Timber.d("👀 Registering movies observer with query: $query")
+        val observer = ditto.store.registerObserver(query) { result ->
             val list = result.items.map { item -> Movie.fromJson(item.jsonString()) }
             Timber.d("📋 Observer received ${list.size} movies")
             trySend(list)
@@ -50,7 +62,7 @@ class MoviesRepository {
         Timber.d("🔍 Fetching movie by id: $movieId")
         return try {
             val item = ditto.store.execute(
-                "SELECT * FROM $COLLECTION WHERE _id = :_id AND NOT deleted",
+                "SELECT * FROM $COLLECTION WHERE _id = :_id",
                 mapOf("_id" to movieId)
             ).items.firstOrNull()
 
@@ -101,15 +113,30 @@ class MoviesRepository {
                   poster = :poster,
                   directors = :directors,
                   cast = :cast,
-                  imdbRating = :imdbRating
+                  imdbRating = :imdbRating,
+                  watched = :watched
                 WHERE _id = :id
-                AND NOT deleted
                 """,
                 movieMap + ("id" to movieId)
             )
             Timber.d("✅ Updated movie: $movieId")
         } catch (e: DittoError) {
             Timber.e("❌ Unable to update movie: $movieId", e)
+        }
+    }
+
+    // ── Toggle watched ──
+
+    suspend fun toggleWatched(movieId: String, watched: Boolean) {
+        Timber.d("👁️ Setting watched=$watched for movie: $movieId")
+        try {
+            ditto.store.execute(
+                "UPDATE $COLLECTION SET watched = :watched WHERE _id = :id",
+                mapOf("id" to movieId, "watched" to watched)
+            )
+            Timber.d("✅ Updated watched=$watched for movie: $movieId")
+        } catch (e: DittoError) {
+            Timber.e("❌ Unable to toggle watched for movie: $movieId", e)
         }
     }
 
@@ -134,7 +161,7 @@ class MoviesRepository {
         Timber.d("🔄 Starting sync...")
         try {
             ditto.startSync()
-            syncSubscription = ditto.sync.registerSubscription(QUERY)
+            syncSubscription = ditto.sync.registerSubscription(SYNC_QUERY)
             Timber.d("✅ Sync started and subscription registered")
         } catch (e: DittoError) {
             Timber.e("❌ Unable to start sync", e)
@@ -235,6 +262,7 @@ class MoviesRepository {
             "directors" to jsonArrayToList("directors"),
             "cast" to jsonArrayToList("cast"),
             "imdbRating" to imdbRating,
+            "watched" to false,
             "deleted" to false
         )
     }

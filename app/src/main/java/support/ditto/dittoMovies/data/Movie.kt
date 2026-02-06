@@ -1,8 +1,8 @@
 package support.ditto.dittoMovies.data
 
-import timber.log.Timber
 import org.json.JSONException
 import org.json.JSONObject
+import timber.log.Timber
 import java.util.UUID
 
 data class Movie(
@@ -17,6 +17,7 @@ data class Movie(
     val directors: List<String> = emptyList(),
     val cast: List<String> = emptyList(),
     val imdbRating: Double = 0.0,
+    val watched: Boolean = false,
     val deleted: Boolean = false,
 ) {
     companion object {
@@ -36,6 +37,7 @@ data class Movie(
                     directors = jsonArrayToList(json.optJSONArray("directors")),
                     cast = jsonArrayToList(json.optJSONArray("cast")),
                     imdbRating = json.optDouble("imdbRating", 0.0),
+                    watched = json.optBoolean("watched", false),
                     deleted = json.optBoolean("deleted", false)
                 )
                 Timber.v("🎥 Parsed: '${movie.title}' (${movie.year})")

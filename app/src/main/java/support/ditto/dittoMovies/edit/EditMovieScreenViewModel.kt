@@ -21,6 +21,7 @@ data class EditMovieState(
     val directors: String = "",
     val cast: String = "",
     val imdbRating: String = "",
+    val watched: Boolean = false,
     val canDelete: Boolean = false,
 )
 
@@ -62,6 +63,7 @@ class EditMovieScreenViewModel : ViewModel() {
                 directors = movie.directors.joinToString(", "),
                 cast = movie.cast.joinToString(", "),
                 imdbRating = if (movie.imdbRating > 0) movie.imdbRating.toString() else "",
+                watched = movie.watched,
                 canDelete = true,
             )
         }
@@ -84,6 +86,7 @@ class EditMovieScreenViewModel : ViewModel() {
             "directors" to s.directors.split(",").map { it.trim() }.filter { it.isNotEmpty() },
             "cast" to s.cast.split(",").map { it.trim() }.filter { it.isNotEmpty() },
             "imdbRating" to (s.imdbRating.toDoubleOrNull() ?: 0.0),
+            "watched" to s.watched,
             "deleted" to false
         )
     }

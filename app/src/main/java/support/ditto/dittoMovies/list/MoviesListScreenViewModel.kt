@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,6 +33,14 @@ class MoviesListScreenViewModel : ViewModel() {
 
     private val _syncEnabled = MutableStateFlow(true)
     val syncEnabled: StateFlow<Boolean> = _syncEnabled.asStateFlow()
+
+    private val _showWatched = MutableStateFlow(false)
+    val showWatched: StateFlow<Boolean> = _showWatched.asStateFlow()
+
+    private val _showDeleted = MutableStateFlow(false)
+    val showDeleted: StateFlow<Boolean> = _showDeleted.asStateFlow()
+
+    private var observerJob: Job? = null
 
     fun setSyncEnabled(enabled: Boolean) {
         viewModelScope.launch {
@@ -70,12 +79,8 @@ class MoviesListScreenViewModel : ViewModel() {
                 Timber.d("⏭️ Movies already imported, skipping")
             }
 
-            // Collect from Flow-based observer (parsing happens on IO)
-            Timber.d("👀 Setting up movies observer...")
-            repository.observeMovies().collect { list ->
-                Timber.d("📋 Received ${list.size} movies from observer")
-                _movies.value = list
-            }
+            // Start observing with current filter state
+            startObserving()
         }
 
         // Restore sync preference in parallel
@@ -83,6 +88,41 @@ class MoviesListScreenViewModel : ViewModel() {
             val savedSyncPref = preferencesDataStore.data.map { prefs -> prefs[SYNC_ENABLED_KEY] ?: true }.first()
             Timber.d("⚙️ Restoring sync preference: $savedSyncPref")
             setSyncEnabled(savedSyncPref)
+        }
+    }
+
+    private fun startObserving() {
+        observerJob?.cancel()
+        val watched = _showWatched.value
+        val deleted = _showDeleted.value
+        Timber.d("👀 Starting observer (showWatched=$watched, showDeleted=$deleted)")
+        observerJob = viewModelScope.launch {
+            repository.observeMovies(
+                showWatched = watched,
+                showDeleted = deleted
+            ).collect { list ->
+                Timber.d("📋 Received ${list.size} movies from observer")
+                _movies.value = list
+            }
+        }
+    }
+
+    fun setShowWatched(enabled: Boolean) {
+        Timber.d("🎯 Filter: showWatched=$enabled")
+        _showWatched.value = enabled
+        startObserving()
+    }
+
+    fun setShowDeleted(enabled: Boolean) {
+        Timber.d("🎯 Filter: showDeleted=$enabled")
+        _showDeleted.value = enabled
+        startObserving()
+    }
+
+    fun toggleWatched(movieId: String, watched: Boolean) {
+        Timber.d("👁️ Toggling watched=$watched for movie: $movieId")
+        viewModelScope.launch {
+            repository.toggleWatched(movieId, watched)
         }
     }
 

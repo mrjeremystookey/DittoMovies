@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -61,6 +62,8 @@ fun MoviesListScreen(navController: NavController) {
     val viewModel: MoviesListScreenViewModel = viewModel()
     val movies: List<Movie> by viewModel.movies.collectAsState()
     val syncEnabled: Boolean by viewModel.syncEnabled.collectAsState()
+    val showWatched: Boolean by viewModel.showWatched.collectAsState()
+    val showDeleted: Boolean by viewModel.showDeleted.collectAsState()
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var deleteDialogMovieId by remember { mutableStateOf("") }
@@ -119,6 +122,37 @@ fun MoviesListScreen(navController: NavController) {
                                     menuExpanded = false
                                     navController.navigate("toolsviewer")
                                 }
+                            )
+                            HorizontalDivider()
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Checkbox(
+                                            checked = showWatched,
+                                            onCheckedChange = null
+                                        )
+                                        Text(
+                                            "Show Watched",
+                                            modifier = Modifier.padding(start = 4.dp)
+                                        )
+                                    }
+                                },
+                                onClick = { viewModel.setShowWatched(!showWatched) }
+                            )
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Checkbox(
+                                            checked = showDeleted,
+                                            onCheckedChange = null
+                                        )
+                                        Text(
+                                            "Show Deleted",
+                                            modifier = Modifier.padding(start = 4.dp)
+                                        )
+                                    }
+                                },
+                                onClick = { viewModel.setShowDeleted(!showDeleted) }
                             )
                         }
                     }
