@@ -160,3 +160,13 @@ Collection: `movies`
 - **Image Loading:** Coil 2.6.0
 - **Logging:** Timber
 - **Preferences:** DataStore Preferences
+
+## Screenshots
+
+|                Movie List                 |                   Movie List Menu                   |                 Movie Detail                  |
+|:-----------------------------------------:|:---------------------------------------------------:|:---------------------------------------------:|
+| ![Movie List](screenshots/movie_list.png) | ![Movie List Menu](screenshots/movie_list_menu.png) | ![Movie Detail](screenshots/movie_detail.png) |
+
+|                Edit Movie                 |                New Movie                |                 Ditto Tools                 |
+|:-----------------------------------------:|:---------------------------------------:|:-------------------------------------------:|
+| ![Edit Movie](screenshots/edit_movie.png) | ![New Movie](screenshots/new_movie.png) | ![Ditto Tools](screenshots/ditto_tools.png) |
