@@ -1,47 +1,30 @@
 package support.ditto.dittoMovies
 
 import android.os.Bundle
+import timber.log.Timber
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import support.ditto.dittoMovies.ui.theme.DittoMoviesTheme
+import live.ditto.transports.DittoSyncPermissions
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        Timber.d("🎬 MainActivity onCreate")
+
         setContent {
-            DittoMoviesTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
-            }
+            Root()
         }
+
+        requestMissingPermissions()
     }
-}
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    DittoMoviesTheme {
-        Greeting("Android")
+    private fun requestMissingPermissions() {
+        val missingPermissions = DittoSyncPermissions(this).missingPermissions()
+        if (missingPermissions.isNotEmpty()) {
+            Timber.d("🔐 Requesting ${missingPermissions.size} missing permissions: ${missingPermissions.toList()}")
+            this.requestPermissions(missingPermissions, 0)
+        } else {
+            Timber.d("✅ All permissions already granted")
+        }
     }
 }

@@ -104,6 +104,9 @@ dependencies {
     // Ditto SDK
     implementation(libs.live.ditto)
 
+    // Logging
+    implementation(libs.timber)
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
