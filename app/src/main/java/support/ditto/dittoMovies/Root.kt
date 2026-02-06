@@ -9,6 +9,7 @@ import androidx.navigation.compose.rememberNavController
 import support.ditto.dittoMovies.detail.MovieDetailScreen
 import support.ditto.dittoMovies.edit.EditMovieScreen
 import support.ditto.dittoMovies.list.MoviesListScreen
+import support.ditto.dittoMovies.toolsviewer.ToolsViewerScreen
 import support.ditto.dittoMovies.ui.theme.DittoMoviesTheme
 
 @Composable
@@ -31,6 +32,7 @@ fun Root() {
                     val movieId: String? = backStackEntry.arguments?.getString("movieId")
                     EditMovieScreen(navController = navController, movieId = movieId)
                 }
+                composable("toolsviewer") { ToolsViewerScreen(navController = navController) }
             }
         }
     }

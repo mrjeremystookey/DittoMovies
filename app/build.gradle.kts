@@ -103,6 +103,7 @@ dependencies {
 
     // Ditto SDK
     implementation(libs.live.ditto)
+    implementation(libs.ditto.tools)
 
     // Logging
     implementation(libs.timber)

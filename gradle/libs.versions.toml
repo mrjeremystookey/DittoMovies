@@ -13,6 +13,7 @@ runtimeLivedata = "1.6.8"
 datastorePreferences = "1.1.1"
 coil = "2.6.0"
 ditto = "4.13.1"
+ditto-tools = "SNAPSHOT"
 timber = "5.0.1"
 
 [libraries]
@@ -35,6 +36,7 @@ androidx-runtime-livedata = { group = "androidx.compose.runtime", name = "runtim
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastorePreferences" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 live-ditto = { group = "live.ditto", name = "ditto", version.ref = "ditto" }
+ditto-tools = { group = "live.ditto", name = "ditto-tools-android", version.ref = "ditto-tools" }
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
 
 [plugins]
