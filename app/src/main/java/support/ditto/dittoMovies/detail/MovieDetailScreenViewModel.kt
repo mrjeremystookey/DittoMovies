@@ -43,4 +43,12 @@ class MovieDetailScreenViewModel : ViewModel() {
             repository.toggleWatched(current._id, newWatched)
         }
     }
+
+    fun delete() {
+        val current = _movie.value ?: return
+        Timber.d("🗑️ Deleting movie: '${current.title}'")
+        viewModelScope.launch {
+            repository.deleteMovie(current._id)
+        }
+    }
 }

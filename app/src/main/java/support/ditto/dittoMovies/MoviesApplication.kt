@@ -77,5 +77,6 @@ class MoviesApplication : Application() {
 
         ditto.disableSyncWithV3()
         Timber.d("✅ Ditto setup complete!")
+        DittoHandler.ready.complete(Unit)
     }
 }

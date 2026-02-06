@@ -1,6 +1,8 @@
 package support.ditto.dittoMovies.data
 
 import android.content.Context
+import android.util.JsonReader
+import android.util.JsonToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -9,11 +11,10 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import live.ditto.DittoError
 import live.ditto.DittoSyncSubscription
-import org.json.JSONArray
-import org.json.JSONObject
 import support.ditto.dittoMovies.DittoHandler.Companion.ditto
 import support.ditto.dittoMovies.MoviesApplication
 import timber.log.Timber
+import java.io.InputStreamReader
 
 class MoviesRepository {
 
@@ -188,82 +189,146 @@ class MoviesRepository {
     suspend fun importMoviesFromAssets() {
         withContext(Dispatchers.IO) {
             try {
-                Timber.d("📂 Reading all_movies.json from assets...")
-                val jsonString = appContext.assets.open("all_movies.json")
-                    .bufferedReader()
-                    .use { it.readText() }
-
-                val jsonArray = JSONArray(jsonString)
-                val total = jsonArray.length()
-                Timber.d("📦 Parsed $total movies from JSON, starting batched import (batch size: $IMPORT_BATCH_SIZE)...")
-
+                Timber.d("📂 Stream-reading all_movies.json from assets...")
                 var imported = 0
                 var failed = 0
+                val batch = mutableListOf<Map<String, Any?>>()
 
-                // Process in batches for better performance
-                for (batchStart in 0 until total step IMPORT_BATCH_SIZE) {
-                    val batchEnd = minOf(batchStart + IMPORT_BATCH_SIZE, total)
-                    val batch = mutableListOf<Map<String, Any?>>()
+                appContext.assets.open("all_movies.json").use { inputStream ->
+                    JsonReader(InputStreamReader(inputStream, "UTF-8")).use { reader ->
+                        reader.beginArray()
+                        while (reader.hasNext()) {
+                            try {
+                                val movieMap = readMovieObject(reader)
+                                batch.add(movieMap)
+                            } catch (e: Exception) {
+                                failed++
+                                Timber.e(e, "❌ Error parsing movie at index ${imported + failed}")
+                                reader.skipValue()
+                            }
 
-                    for (i in batchStart until batchEnd) {
-                        try {
-                            batch.add(flattenMovieJson(jsonArray.getJSONObject(i)))
-                        } catch (e: Exception) {
-                            failed++
-                            Timber.e(e, "❌ Error parsing movie at index $i")
+                            if (batch.size >= IMPORT_BATCH_SIZE) {
+                                imported += insertBatch(batch)
+                                batch.clear()
+                                if (imported % 1000 < IMPORT_BATCH_SIZE) {
+                                    Timber.d("⏳ Import progress: $imported")
+                                }
+                            }
                         }
-                    }
-
-                    if (batch.isNotEmpty()) {
-                        try {
-                            ditto.store.execute(
-                                "INSERT INTO $COLLECTION INITIAL DOCUMENTS (:movies)",
-                                mapOf("movies" to batch)
-                            )
-                            imported += batch.size
-                        } catch (e: Exception) {
-                            failed += batch.size
-                            Timber.e(e, "❌ Error inserting batch at $batchStart")
-                        }
-                    }
-
-                    if (imported % 1000 < IMPORT_BATCH_SIZE) {
-                        Timber.d("⏳ Import progress: $imported / $total")
+                        reader.endArray()
                     }
                 }
 
-                Timber.d("🎬 Import complete! ✅ $imported imported, ❌ $failed failed, 📊 $total total")
+                // Insert remaining
+                if (batch.isNotEmpty()) {
+                    imported += insertBatch(batch)
+                    batch.clear()
+                }
+
+                Timber.d("🎬 Import complete! ✅ $imported imported, ❌ $failed failed")
             } catch (e: Exception) {
                 Timber.e(e, "💥 Error reading movies JSON from assets")
             }
         }
     }
 
-    private fun flattenMovieJson(obj: JSONObject): Map<String, Any?> {
-        val id = obj.optJSONObject("_id")?.optString("\$oid")
-            ?: obj.optString("_id", java.util.UUID.randomUUID().toString())
-
-        fun jsonArrayToList(key: String): List<String> {
-            val arr = obj.optJSONArray(key) ?: return emptyList()
-            return (0 until arr.length()).map { arr.getString(it) }
+    private suspend fun insertBatch(batch: List<Map<String, Any?>>): Int {
+        var count = 0
+        for (doc in batch) {
+            try {
+                ditto.store.execute(
+                    "INSERT INTO $COLLECTION INITIAL DOCUMENTS (:doc)",
+                    mapOf("doc" to doc)
+                )
+                count++
+            } catch (e: Exception) {
+                Timber.e(e, "❌ Error inserting movie: ${doc["title"]}")
+            }
         }
+        return count
+    }
 
-        val imdbRating = obj.optJSONObject("imdb")?.optDouble("rating", 0.0) ?: 0.0
-
-        return mapOf(
-            "_id" to id,
-            "title" to obj.optString("title", ""),
-            "year" to obj.optInt("year", 0),
-            "plot" to obj.optString("plot", ""),
-            "genres" to jsonArrayToList("genres"),
-            "rated" to obj.optString("rated", ""),
-            "runtime" to obj.optInt("runtime", 0),
-            "poster" to obj.optString("poster", ""),
-            "directors" to jsonArrayToList("directors"),
-            "cast" to jsonArrayToList("cast"),
-            "imdbRating" to imdbRating,
+    private fun readMovieObject(reader: JsonReader): Map<String, Any?> {
+        val map = mutableMapOf<String, Any?>(
+            "_id" to java.util.UUID.randomUUID().toString(),
+            "title" to "",
+            "year" to 0,
+            "plot" to "",
+            "genres" to emptyList<String>(),
+            "rated" to "",
+            "runtime" to 0,
+            "poster" to "",
+            "directors" to emptyList<String>(),
+            "cast" to emptyList<String>(),
+            "imdbRating" to 0.0,
             "watched" to false,
             "deleted" to false
         )
+
+        reader.beginObject()
+        while (reader.hasNext()) {
+            val name = reader.nextName()
+            if (reader.peek() == JsonToken.NULL) {
+                reader.skipValue()
+                continue
+            }
+            when (name) {
+                "_id" -> {
+                    // _id can be a string or an object like { "$oid": "..." }
+                    if (reader.peek() == JsonToken.BEGIN_OBJECT) {
+                        reader.beginObject()
+                        while (reader.hasNext()) {
+                            val key = reader.nextName()
+                            if (key == "\$oid") map["_id"] = reader.nextString()
+                            else reader.skipValue()
+                        }
+                        reader.endObject()
+                    } else {
+                        map["_id"] = reader.nextString()
+                    }
+                }
+
+                "title" -> map["title"] = reader.nextString()
+                "year" -> map["year"] = reader.nextInt()
+                "plot" -> map["plot"] = reader.nextString()
+                "rated" -> map["rated"] = reader.nextString()
+                "runtime" -> map["runtime"] = reader.nextInt()
+                "poster" -> map["poster"] = reader.nextString()
+                "genres", "directors", "cast" -> map[name] = readStringArray(reader)
+                "imdb" -> {
+                    // Extract rating from nested imdb object
+                    reader.beginObject()
+                    while (reader.hasNext()) {
+                        val key = reader.nextName()
+                        if (key == "rating" && reader.peek() == JsonToken.NUMBER) {
+                            map["imdbRating"] = reader.nextDouble()
+                        } else {
+                            reader.skipValue()
+                        }
+                    }
+                    reader.endObject()
+                }
+
+                "imdbRating" -> {
+                    if (reader.peek() == JsonToken.NUMBER) map["imdbRating"] = reader.nextDouble()
+                    else reader.skipValue()
+                }
+
+                else -> reader.skipValue()
+            }
+        }
+        reader.endObject()
+        return map
+    }
+
+    private fun readStringArray(reader: JsonReader): List<String> {
+        val list = mutableListOf<String>()
+        reader.beginArray()
+        while (reader.hasNext()) {
+            if (reader.peek() == JsonToken.STRING) list.add(reader.nextString())
+            else reader.skipValue()
+        }
+        reader.endArray()
+        return list
     }
 }

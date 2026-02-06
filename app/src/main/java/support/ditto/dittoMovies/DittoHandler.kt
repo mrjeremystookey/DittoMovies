@@ -1,9 +1,11 @@
 package support.ditto.dittoMovies
 
-import live.ditto.*
+import kotlinx.coroutines.CompletableDeferred
+import live.ditto.Ditto
 
 class DittoHandler {
     companion object {
         lateinit var ditto: Ditto
+        val ready = CompletableDeferred<Unit>()
     }
 }

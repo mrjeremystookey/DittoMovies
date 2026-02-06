@@ -18,8 +18,6 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -36,7 +34,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -65,8 +62,6 @@ fun MoviesListScreen(navController: NavController) {
     val showWatched: Boolean by viewModel.showWatched.collectAsState()
     val showDeleted: Boolean by viewModel.showDeleted.collectAsState()
 
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    var deleteDialogMovieId by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
@@ -184,10 +179,6 @@ fun MoviesListScreen(navController: NavController) {
                             movie = movie,
                             onClick = {
                                 navController.navigate("movies/${it._id}")
-                            },
-                            onClickDelete = {
-                                deleteDialogMovieId = it._id
-                                showDeleteDialog = true
                             }
                         )
                     }
@@ -196,42 +187,6 @@ fun MoviesListScreen(navController: NavController) {
         }
     )
 
-    if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            icon = {
-                Icon(
-                    imageVector = Icons.Filled.Warning,
-                    contentDescription = "Warning",
-                    tint = MaterialTheme.colorScheme.error
-                )
-            },
-            title = {
-                Text(
-                    text = "Confirm Deletion",
-                    style = MaterialTheme.typography.titleLarge
-                )
-            },
-            text = {
-                Text(text = "Are you sure you want to delete this movie?")
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteDialog = false
-                        viewModel.delete(deleteDialogMovieId)
-                    }
-                ) {
-                    Text("Delete")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
 }
 
 @Composable

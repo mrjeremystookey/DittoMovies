@@ -63,6 +63,9 @@ class MoviesListScreenViewModel : ViewModel() {
     init {
         Timber.d("🎬 ViewModel initializing...")
         viewModelScope.launch {
+            // Wait for Ditto to be fully initialized
+            support.ditto.dittoMovies.DittoHandler.ready.await()
+
             // Import movies from JSON asset on first launch
             val alreadyImported = preferencesDataStore.data
                 .map { prefs -> prefs[DATA_IMPORTED_KEY] ?: false }
@@ -83,8 +86,9 @@ class MoviesListScreenViewModel : ViewModel() {
             startObserving()
         }
 
-        // Restore sync preference in parallel
+        // Restore sync preference after Ditto is ready
         viewModelScope.launch {
+            support.ditto.dittoMovies.DittoHandler.ready.await()
             val savedSyncPref = preferencesDataStore.data.map { prefs -> prefs[SYNC_ENABLED_KEY] ?: true }.first()
             Timber.d("⚙️ Restoring sync preference: $savedSyncPref")
             setSyncEnabled(savedSyncPref)
