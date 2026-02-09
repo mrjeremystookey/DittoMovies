@@ -265,12 +265,20 @@ fun MovieDetailScreen(navController: NavController, movieId: String) {
                                 checkmarkColor = Color.Black
                             )
                         )
-                        Text(
-                            text = if (currentMovie.watched) "Watched" else "Mark as watched",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = Color.White,
-                            modifier = Modifier.padding(start = 4.dp)
-                        )
+                        Column(modifier = Modifier.padding(start = 4.dp)) {
+                            Text(
+                                text = if (currentMovie.watched) "Watched" else "Mark as watched",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = Color.White,
+                            )
+                            if (currentMovie.watched && currentMovie.watchedAt != null) {
+                                Text(
+                                    text = formatWatchedAt(currentMovie.watchedAt),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.White.copy(alpha = 0.6f),
+                                )
+                            }
+                        }
                     }
 
                     // Plot
@@ -339,6 +347,17 @@ fun MovieDetailScreen(navController: NavController, movieId: String) {
                 }
             }
         )
+    }
+}
+
+private fun formatWatchedAt(isoTimestamp: String): String {
+    return try {
+        val instant = java.time.Instant.parse(isoTimestamp)
+        val zoned = instant.atZone(java.time.ZoneId.systemDefault())
+        val formatter = java.time.format.DateTimeFormatter.ofPattern("MMM d, yyyy 'at' h:mm a")
+        zoned.format(formatter)
+    } catch (_: Exception) {
+        isoTimestamp
     }
 }
 

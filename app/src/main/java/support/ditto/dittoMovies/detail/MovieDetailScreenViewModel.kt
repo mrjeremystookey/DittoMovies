@@ -9,6 +9,7 @@ import kotlinx.coroutines.launch
 import support.ditto.dittoMovies.data.Movie
 import support.ditto.dittoMovies.data.MoviesRepository
 import timber.log.Timber
+import java.time.Instant
 
 class MovieDetailScreenViewModel : ViewModel() {
 
@@ -37,10 +38,11 @@ class MovieDetailScreenViewModel : ViewModel() {
     fun toggleWatched() {
         val current = _movie.value ?: return
         val newWatched = !current.watched
+        val newWatchedAt = if (newWatched) Instant.now().toString() else null
         Timber.d("👁️ Toggling watched=${newWatched} for '${current.title}'")
-        _movie.value = current.copy(watched = newWatched)
+        _movie.value = current.copy(watched = newWatched, watchedAt = newWatchedAt)
         viewModelScope.launch {
-            repository.toggleWatched(current._id, newWatched)
+            repository.toggleWatched(current._id, newWatched, newWatchedAt)
         }
     }
 

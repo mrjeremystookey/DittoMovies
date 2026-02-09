@@ -1,6 +1,8 @@
 package support.ditto.dittoMovies.list
 
 import android.content.Context
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
@@ -123,10 +125,12 @@ class MoviesListScreenViewModel : ViewModel() {
         startObserving()
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     fun toggleWatched(movieId: String, watched: Boolean) {
+        val watchedAt = if (watched) java.time.Instant.now().toString() else null
         Timber.d("👁️ Toggling watched=$watched for movie: $movieId")
         viewModelScope.launch {
-            repository.toggleWatched(movieId, watched)
+            repository.toggleWatched(movieId, watched, watchedAt)
         }
     }
 

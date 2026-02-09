@@ -18,6 +18,7 @@ data class Movie(
     val cast: List<String> = emptyList(),
     val imdbRating: Double = 0.0,
     val watched: Boolean = false,
+    val watchedAt: String? = null,
     val deleted: Boolean = false,
 ) {
     companion object {
@@ -38,6 +39,7 @@ data class Movie(
                     cast = jsonArrayToList(json.optJSONArray("cast")),
                     imdbRating = json.optDouble("imdbRating", 0.0),
                     watched = json.optBoolean("watched", false),
+                    watchedAt = json.optString("watched_at", "").ifBlank { null },
                     deleted = json.optBoolean("deleted", false)
                 )
                 Timber.v("🎥 Parsed: '${movie.title}' (${movie.year})")

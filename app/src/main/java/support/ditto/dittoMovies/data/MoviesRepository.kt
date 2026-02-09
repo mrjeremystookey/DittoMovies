@@ -115,7 +115,8 @@ class MoviesRepository {
                   directors = :directors,
                   cast = :cast,
                   imdbRating = :imdbRating,
-                  watched = :watched
+                  watched = :watched,
+                  watched_at = :watched_at
                 WHERE _id = :id
                 """,
                 movieMap + ("id" to movieId)
@@ -128,12 +129,12 @@ class MoviesRepository {
 
     // ── Toggle watched ──
 
-    suspend fun toggleWatched(movieId: String, watched: Boolean) {
-        Timber.d("👁️ Setting watched=$watched for movie: $movieId")
+    suspend fun toggleWatched(movieId: String, watched: Boolean, watchedAt: String?) {
+        Timber.d("👁️ Setting watched=$watched, watched_at=$watchedAt for movie: $movieId")
         try {
             ditto.store.execute(
-                "UPDATE $COLLECTION SET watched = :watched WHERE _id = :id",
-                mapOf("id" to movieId, "watched" to watched)
+                "UPDATE $COLLECTION SET watched = :watched, watched_at = :watched_at WHERE _id = :id",
+                mapOf("id" to movieId, "watched" to watched, "watched_at" to watchedAt)
             )
             Timber.d("✅ Updated watched=$watched for movie: $movieId")
         } catch (e: DittoError) {
@@ -262,6 +263,7 @@ class MoviesRepository {
             "cast" to emptyList<String>(),
             "imdbRating" to 0.0,
             "watched" to false,
+            "watched_at" to null,
             "deleted" to false
         )
 
